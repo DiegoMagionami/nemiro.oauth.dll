@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
 using System.Collections.Specialized;
+using System.Collections.Concurrent;
 
 namespace Nemiro.OAuth
 {
@@ -58,12 +59,12 @@ namespace Nemiro.OAuth
     /// <summary>
     /// Gets the list of all clients.
     /// </summary>
-    internal static Dictionary<string, Type> AllClients { get; private set; }
+    internal static ConcurrentDictionary<string, Type> AllClients { get; private set; }
 
     /// <summary>
     /// Gets the list of registered clients.
     /// </summary>
-    public static Dictionary<ClientName, OAuthBase> RegisteredClients { get; private set; }
+    public static ConcurrentDictionary<ClientName, OAuthBase> RegisteredClients { get; private set; }
 
     #endregion
     #region ..constructor..
@@ -73,8 +74,8 @@ namespace Nemiro.OAuth
     /// </summary>
     static OAuthManager()
     {
-      OAuthManager.RegisteredClients = new Dictionary<ClientName, OAuthBase>();
-      OAuthManager.AllClients = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
+      OAuthManager.RegisteredClients = new ConcurrentDictionary<ClientName, OAuthBase>();
+      OAuthManager.AllClients = new ConcurrentDictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
 
       // get all clients
       var types = System.Reflection.Assembly.GetExecutingAssembly().GetTypes().Where
@@ -101,7 +102,7 @@ namespace Nemiro.OAuth
           }
         }
         var client = Activator.CreateInstance(t, param.ToArray()) as OAuthBase;
-        OAuthManager.AllClients.Add(client.ProviderName, t);
+        OAuthManager.AllClients.TryAdd(client.ProviderName, t);
         // OAuthManager.RemoveRequest(client.State);
       }
       // --
@@ -432,7 +433,7 @@ namespace Nemiro.OAuth
       }
 
       // add client
-      OAuthManager.RegisteredClients.Add(name, client);
+      OAuthManager.RegisteredClients.TryAdd(name, client);
 
       // remove from watching 
       // OAuthManager.RemoveRequest(client.State.ToString());
@@ -442,7 +443,7 @@ namespace Nemiro.OAuth
       if (!OAuthManager.AllClients.ContainsKey(client.ProviderName))
       {
         // add to list
-        OAuthManager.AllClients.Add(client.ProviderName, client.GetType());
+        OAuthManager.AllClients.TryAdd(client.ProviderName, client.GetType());
       }
       /*else
       {

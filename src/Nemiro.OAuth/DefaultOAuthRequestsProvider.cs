@@ -15,6 +15,7 @@
 // ----------------------------------------------------------------------------
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Timers;
@@ -38,11 +39,11 @@ namespace Nemiro.OAuth
     /// <summary>
     /// Gets the list of active requests.
     /// </summary>
-    internal Dictionary<string, OAuthRequest> Requests { get; private set; }
+    internal ConcurrentDictionary<string, OAuthRequest> Requests { get; private set; }
 
     public DefaultOAuthRequestsProvider()
     {
-      this.Requests = new Dictionary<string, OAuthRequest>();
+      this.Requests = new ConcurrentDictionary<string, OAuthRequest>();
       this.Timer.Elapsed += Timer_Elapsed;
     }
 
@@ -91,7 +92,7 @@ namespace Nemiro.OAuth
         throw new ArgumentNullException("key");
       }
 
-      this.Requests.Add(key, new OAuthRequest(clientName, client, state));
+      this.Requests.TryAdd(key, new OAuthRequest(clientName, client, state));
 
       this.Timer.Start();
     }
@@ -142,7 +143,7 @@ namespace Nemiro.OAuth
 
       if (this.Requests.ContainsKey(key))
       {
-        this.Requests.Remove(key);
+        this.Requests.TryRemove(key, out OAuthRequest val);
       }
 
       this.Timer.Enabled = (this.Requests.Count > 0);
